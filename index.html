@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IR & ARG Image Processor</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --accent-color: #ff3366;
+            --panel-bg: #1e1e1e;
+        }
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            background: var(--bg-color); 
+            color: var(--text-color); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 40px 20px; 
+            margin: 0;
+        }
+        h1 { margin-bottom: 5px; color: var(--accent-color); }
+        p { margin-bottom: 30px; text-align: center; max-width: 600px; }
+        
+        .controls { 
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            display: flex; 
+            gap: 15px; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        
+        button, input[type="file"] { 
+            padding: 10px 15px; 
+            background: #2a2a2a; 
+            color: #fff; 
+            border: 1px solid #444; 
+            cursor: pointer; 
+            border-radius: 4px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        input[type="file"] { border: 1px dashed #666; }
+        
+        button:hover { 
+            background: var(--accent-color); 
+            border-color: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .canvas-container {
+            margin-top: 30px;
+            max-width: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+        }
+
+        canvas { 
+            max-width: 100%; 
+            border: 2px solid #333; 
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Terminal: Image Processor</h1>
+    <p>Upload a standard image and apply Simulated Infrared (IR) or Alternate Reality Game (ARG) Glitch effects natively using the HTML5 Canvas API.</p>
+    
+    <div class="controls">
+        <input type="file" id="imageLoader" accept="image/*">
+        <button id="btn-ir">Simulate IR</button>
+        <button id="btn-arg">ARG Glitch</button>
+        <button id="btn-reset">Reset</button>
+        <button id="btn-download">Download Result</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        const imageLoader = document.getElementById('imageLoader');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let originalImage = new Image();
+        let imgDataOriginal = null;
+
+        // Handle Image Upload
+        imageLoader.addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                originalImage.onload = function() {
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+                    ctx.drawImage(originalImage, 0, 0);
+                    imgDataOriginal = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                }
+                originalImage.src = event.target.result;
+            }
+            if (e.target.files[0]) {
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        // Reset Canvas to Original Upload
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if (!imgDataOriginal) return alert("Please upload an image first.");
+            ctx.putImageData(imgDataOriginal, 0, 0);
+        });
+
+        // Filter 1: Simulated Infrared (IR)
+        document.getElementById('btn-ir').addEventListener('click', () => {
+            if (!imgDataOriginal) return alert("Please upload an image first.");
+            
+            // Always start from the original image data to prevent compounding effects
+            ctx.putImageData(imgDataOriginal, 0, 0);
+            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let data = imgData.data;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i];
+                let g = data[i+1];
+                let b = data[i+2];
+                
+                // Faux IR logic: Boost reds heavily, invert greens/blues for a false-color look
+                data[i] = Math.min(255, r + 80 + (g * 0.3)); // Red channel
+                data[i+1] = 255 - g;                         // Green channel
+                data[i+2] = 255 - b;                         // Blue channel
+            }
+            ctx.putImageData(imgData, 0, 0);
+        });
+
+        // Filter 2: Alternate Reality Game (ARG) Glitch
+        document.getElementById('btn-arg').addEventListener('click', () => {
+            if (!imgDataOriginal) return alert("Please upload an image first.");
+            
+            ctx.putImageData(imgDataOriginal, 0, 0);
+            let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let data = imgData.data;
+            let width = canvas.width;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Horizontal pixel shift for RGB separation (Glitch effect)
+                let y = Math.floor((i / 4) / width);
+                let shift = (y % 10 === 0) ? 12 : 0; // Create horizontal bands
+                
+                if (i + shift * 4 < data.length) {
+                    data[i] = data[i + shift * 4]; // Shift red channel
+                }
+                
+                // Add TV Static/Noise to enhance the ARG vibe
+                if (Math.random() > 0.85) {
+                    let noise = (Math.random() - 0.5) * 80;
+                    data[i] = Math.max(0, Math.min(255, data[i] + noise));
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        });
+
+        // Download Processed Image
+        document.getElementById('btn-download').addEventListener('click', () => {
+            if (!imgDataOriginal) return alert("Please upload an image first.");
+            const link = document.createElement('a');
+            link.download = 'Processed_ARG_Image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    </script>
+</body>
+</html>
